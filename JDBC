@@ -1,0 +1,355 @@
+import java.sql.*;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Scanner;
+
+// User class
+class User {
+    private String username;
+    private String password;
+    private String email;
+
+    public User(String username, String password, String email) {
+        this.username = username;
+        this.password = password;
+        this.email = email;
+    }
+
+    public String getUsername() {
+        return username;
+    }
+
+    public String getPassword() {
+        return password;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+}
+
+// Event class
+class Event {
+    private String eventName;
+    private LocalDateTime eventDate;
+    private String location;
+
+    public Event(String eventName, LocalDateTime eventDate, String location) {
+        this.eventName = eventName;
+        this.eventDate = eventDate;
+        this.location = location;
+    }
+
+    public String getEventName() {
+        return eventName;
+    }
+
+    public LocalDateTime getEventDate() {
+        return eventDate;
+    }
+
+    public String getLocation() {
+        return location;
+    }
+}
+
+// Registration class
+class Registration {
+    private User user;
+    private Event event;
+
+    public Registration(User user, Event event) {
+        this.user = user;
+        this.event = event;
+    }
+
+    public User getUser() {
+        return user;
+    }
+
+    public Event getEvent() {
+        return event;
+    }
+}
+
+// SportsManagementSystem class
+class SportsManagementSystem {
+    private Connection connection;
+
+    public SportsManagementSystem() {
+        try {
+            // Database connection
+            connection = DriverManager.getConnection("jdbc:mysql://localhost:3306/sports_management", "root", "55657785@2024");
+            System.out.println("Database connected successfully.");
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void addEvent(Event event) {
+        String query = "INSERT INTO events (event_name, event_date, location) VALUES (?, ?, ?)";
+        try (PreparedStatement pstmt = connection.prepareStatement(query)) {
+            pstmt.setString(1, event.getEventName());
+            pstmt.setTimestamp(2, Timestamp.valueOf(event.getEventDate()));
+            pstmt.setString(3, event.getLocation());
+            pstmt.executeUpdate();
+            System.out.println("Event added successfully.");
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void registerUser(User user) {
+        String query = "INSERT INTO users (username, password, email) VALUES (?, ?, ?)";
+        try (PreparedStatement pstmt = connection.prepareStatement(query)) {
+            pstmt.setString(1, user.getUsername());
+            pstmt.setString(2, user.getPassword());
+            pstmt.setString(3, user.getEmail());
+            pstmt.executeUpdate();
+            System.out.println("User registered successfully.");
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void registerForEvent(User user, Event event) {
+        String query = "INSERT INTO registrations (user_id, event_id) VALUES (?, ?)";
+        try {
+            // Get user ID
+            int userId = getUserId(user.getUsername());
+            int eventId = getEventId(event.getEventName());
+
+            try (PreparedStatement pstmt = connection.prepareStatement(query)) {
+                pstmt.setInt(1, userId);
+                pstmt.setInt(2, eventId);
+                pstmt.executeUpdate();
+                System.out.println("Registration successful for " + user.getUsername() + " for event: " + event.getEventName());
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void displayEvents() {
+        String query = "SELECT * FROM events";
+        try (Statement stmt = connection.createStatement(); ResultSet rs = stmt.executeQuery(query)) {
+            System.out.println("Available Events:");
+            while (rs.next()) {
+                System.out.println("Event: " + rs.getString("event_name") + ", Date: " + rs.getTimestamp("event_date") + ", Location: " + rs.getString("location"));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void adminInterface() {
+        Scanner scanner = new Scanner(System.in);
+        System.out.println("Admin Login");
+        System.out.print("Admin ID: ");
+        String adminId = scanner.nextLine();
+        System.out.print("Password: ");
+        String password = scanner.nextLine();
+
+        // Sample Admin credentials
+        if (adminId.equals("admin") && password.equals("admin123")) {
+            System.out.println("Admin login successful.");
+            while (true) {
+                System.out.println("\nAdmin Menu:");
+                System.out.println("1. Add Event");
+                System.out.println("2. View Registrations");
+                System.out.println("3. View Events");
+                System.out.println("4. Exit");
+                System.out.print("Choose an option: ");
+                int choice = scanner.nextInt();
+                scanner.nextLine(); // Consume newline
+
+                switch (choice) {
+                    case 1:
+                        System.out.print("Enter event name: ");
+                        String eventName = scanner.nextLine();
+                        System.out.print("Enter event date (YYYY-MM-DD HH:MM): ");
+                        LocalDateTime eventDate = LocalDateTime.parse(scanner.nextLine().replace(" ", "T"));
+                        System.out.print("Enter location: ");
+                        String location = scanner.nextLine();
+                        addEvent(new Event(eventName, eventDate, location));
+                        break;
+
+                    case 2:
+                        System.out.println("Registrations:");
+                        viewRegistrations();
+                        break;
+
+                    case 3:
+                        displayEvents();
+                        break;
+                    
+            
+
+                    case 4:
+                        System.out.println("Exiting Admin Interface.");
+                        return;
+
+                    default:
+                        System.out.println("Invalid choice. Please try again.");
+                }
+            }
+        } else {
+            System.out.println("Invalid Admin credentials.");
+        }
+    }
+
+    public void userInterface() {
+        Scanner scanner = new Scanner(System.in);
+        while (true) {
+            System.out.println("\nUser Menu:");
+            System.out.println("1. Register");
+            System.out.println("2. View Events");
+            System.out.println("3. Register for Event");
+            System.out.println("4. Exit");
+            System.out.print("Choose an option: ");
+            int choice = scanner.nextInt();
+            scanner.nextLine(); // Consume newline
+
+            switch (choice) {
+                case 1:
+                    System.out.print("Enter username: ");
+                    String username = scanner.nextLine();
+                    System.out.print("Enter password: ");
+                    String password = scanner.nextLine();
+                    System.out.print("Enter email: ");
+                    String email = scanner.nextLine();
+                    registerUser(new User(username, password, email));
+                    break;
+
+                case 2:
+                    displayEvents();
+                    break;
+
+                case 3:
+                    System.out.print("Enter your username: ");
+                    String userNameToRegister = scanner.nextLine();
+                    User user = getUserByUsername(userNameToRegister);
+                    if (user == null) {
+                        System.out.println("User not found.");
+                        break;
+                    }
+                    displayEvents();
+                    System.out.print("Enter event name to register: ");
+                    String eventNameToRegister = scanner.nextLine();
+                    Event event = getEventByName(eventNameToRegister);
+                    if (event == null) {
+                        System.out.println("Event not found.");
+                    } else {
+                        registerForEvent(user, event);
+                    }
+                    break;
+
+                case 4:
+                    System.out.println("Exiting User Interface.");
+                    return;
+
+                default:
+                    System.out.println("Invalid choice. Please try again.");
+            }
+        }
+    }
+
+    private User getUserByUsername(String username) {
+        String query = "SELECT * FROM users WHERE username = ?";
+        try (PreparedStatement pstmt = connection.prepareStatement(query)) {
+            pstmt.setString(1, username);
+            ResultSet rs = pstmt.executeQuery();
+            if (rs.next()) {
+                return new User(rs.getString("username"), rs.getString("password"), rs.getString("email"));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    private Event getEventByName(String eventName) {
+        String query = "SELECT * FROM events WHERE event_name = ?";
+        try (PreparedStatement pstmt = connection.prepareStatement(query)) {
+            pstmt.setString(1, eventName);
+            ResultSet rs = pstmt.executeQuery();
+            if (rs.next()) {
+                return new Event(rs.getString("event_name"), rs.getTimestamp("event_date").toLocalDateTime(), rs.getString("location"));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    private void viewRegistrations() {
+        String query = "SELECT users.username, events.event_name FROM registrations " +
+                       "JOIN users ON registrations.user_id = users.id " +
+                       "JOIN events ON registrations.event_id = events.id";
+        try (Statement stmt = connection.createStatement(); ResultSet rs = stmt.executeQuery(query)) {
+            while (rs.next()) {
+                System.out.println("User: " + rs.getString("username") + ", Event: " + rs.getString("event_name"));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private int getUserId(String username) {
+        String query = "SELECT id FROM users WHERE username = ?";
+        try (PreparedStatement pstmt = connection.prepareStatement(query)) {
+            pstmt.setString(1, username);
+            ResultSet rs = pstmt.executeQuery();
+            if (rs.next()) {
+                return rs.getInt("id");
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return -1;
+    }
+
+    private int getEventId(String eventName) {
+        String query = "SELECT id FROM events WHERE event_name = ?";
+        try (PreparedStatement pstmt = connection.prepareStatement(query)) {
+            pstmt.setString(1, eventName);
+            ResultSet rs = pstmt.executeQuery();
+            if (rs.next()) {
+                return rs.getInt("id");
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return -1;
+    }
+
+    public static void main(String[] args) {
+        SportsManagementSystem sms = new SportsManagementSystem();
+        Scanner scanner = new Scanner(System.in);
+        while (true) {
+            System.out.println("\nWelcome to Sports Management System");
+            System.out.println("1. Admin Interface");
+            System.out.println("2. User Interface");
+            System.out.println("3. Exit");
+            System.out.print("Choose an option: ");
+            int mainChoice = scanner.nextInt();
+            scanner.nextLine(); // Consume newline
+
+            switch (mainChoice) {
+                case 1:
+                    sms.adminInterface();
+                    break;
+                case 2:
+                    sms.userInterface();
+                    break;
+                case 3:
+                    System.out.println("Exiting System.");
+                    return;
+                default:
+                    System.out.println("Invalid choice. Please try again.");
+            }
+        }
+    }
+}
+
